@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Admin User</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="tel"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .password-hint {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .security-info {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .security-info h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .security-info ul {
+            margin-left: 20px;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button[type="submit"],
+        .btn-back {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        button[type="submit"] {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        .btn-back {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-back:hover {
+            background: #d0d0d0;
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #fee;
+            border-left: 4px solid #f44;
+            color: #c33;
+        }
+
+        .alert-success {
+            background: #efe;
+            border-left: 4px solid #4f4;
+            color: #3c3;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .field-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Create Admin User</h1>
+            <p>Create a new administrator account for the Event Management System</p>
+            <div class="admin-badge">ADMIN ACCESS</div>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <form id="adminForm" method="POST">
+            <!-- Security Info Section -->
+            <div class="security-info">
+                <h4>⚠️ Security Notice</h4>
+                <ul>
+                    <li>Use a strong password (min 8 characters)</li>
+                    <li>Include uppercase, lowercase, numbers, and symbols</li>
+                    <li>Don't use common words or personal information</li>
+                    <li>Store password securely</li>
+                </ul>
+            </div>
+
+            <!-- Master Password Section -->
+            <div class="form-section">
+                <div class="form-section-title">Verify Master Password</div>
+                <div class="form-group">
+                    <label for="masterPassword">Master Password *</label>
+                    <input 
+                        type="password" 
+                        id="masterPassword" 
+                        name="master_password" 
+                        placeholder="Enter master password to proceed"
+                        required
+                    >
+                </div>
+            </div>
+
+            <!-- Admin User Info Section -->
+            <div class="form-section" id="adminSection" style="display: none;">
+                <div class="form-section-title">Admin Information</div>
+                
+                <div class="form-group">
+                    <label for="adminName">Full Name *</label>
+                    <input 
+                        type="text" 
+                        id="adminName" 
+                        name="name" 
+                        placeholder="e.g., John Doe"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="adminEmail">Email Address *</label>
+                    <input 
+                        type="email" 
+                        id="adminEmail" 
+                        name="email" 
+                        placeholder="e.g., admin@example.com"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPhone">Phone Number</label>
+                    <input 
+                        type="tel" 
+                        id="adminPhone" 
+                        name="phone" 
+                        placeholder="e.g., +1 234 567 8900"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password *</label>
+                    <input 
+                        type="password" 
+                        id="adminPassword" 
+                        name="password" 
+                        placeholder="Create a strong password"
+                        minlength="8"
+                    >
+                    <div class="password-hint">Minimum 8 characters with uppercase, lowercase, numbers</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password *</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirm_password" 
+                        placeholder="Re-enter password"
+                        minlength="8"
+                    >
+                </div>
+            </div>
+
+            <div class="button-group">
+                <a href="/" class="btn-back">← Back Home</a>
+                <button type="submit" id="submitBtn">Create Admin</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Creating admin user...</p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('adminForm');
+        const masterPasswordInput = document.getElementById('masterPassword');
+        const adminSection = document.getElementById('adminSection');
+        const alertDiv = document.getElementById('alert');
+        const loadingDiv = document.getElementById('loading');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Show admin form only after master password is entered
+        masterPasswordInput.addEventListener('blur', async function() {
+            const password = this.value.trim();
+            
+            if (!password) {
+                adminSection.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/verify-master-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ master_password: password })
+                });
+
+                if (response.ok) {
+                    adminSection.style.display = 'block';
+                    showAlert('Master password verified! Enter admin details.', 'success');
+                } else {
+                    adminSection.style.display = 'none';
+                    showAlert('Incorrect master password', 'error');
+                }
+            } catch (error) {
+                showAlert('Error verifying password', 'error');
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (adminSection.style.display === 'none') {
+                showAlert('Please verify master password first', 'error');
+                return;
+            }
+
+            const name = document.getElementById('adminName').value.trim();
+            const email = document.getElementById('adminEmail').value.trim();
+            const phone = document.getElementById('adminPhone').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validation
+            if (!name || !email || !password) {
+                showAlert('Please fill all required fields', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showAlert('Passwords do not match', 'error');
+                return;
+            }
+
+            if (password.length < 8) {
+                showAlert('Password must be at least 8 characters', 'error');
+                return;
+            }
+
+            // Submit
+            loadingDiv.style.display = 'block';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/create-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        phone,
+                        password,
+                        master_password: masterPasswordInput.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('✓ Admin user created successfully! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    showAlert(data.detail || 'Failed to create admin user', 'error');
+                }
+            } catch (error) {
+                showAlert('Error creating admin user: ' + error.message, 'error');
+            } finally {
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        function showAlert(message, type) {
+            alertDiv.textContent = message;
+            alertDiv.className = `alert show alert-${type}`;
+            alertDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    alertDiv.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // Password strength indicator
+        const passwordInput = document.getElementById('adminPassword');
+        passwordInput.addEventListener('input', function() {
+            const strength = checkPasswordStrength(this.value);
+            if (strength < 50) {
+                this.style.borderColor = '#f44';
+            } else if (strength < 80) {
+                this.style.borderColor = '#fa4';
+            } else {
+                this.style.borderColor = '#4f4';
+            }
+        });
+
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            
+            if (password.length >= 8) strength += 20;
+            if (password.length >= 12) strength += 10;
+            if (/[a-z]/.test(password)) strength += 20;
+            if (/[A-Z]/.test(password)) strength += 20;
+            if (/[0-9]/.test(password)) strength += 15;
+            if (/[^a-zA-Z0-9]/.test(password)) strength += 15;
+            
+            return Math.min(strength, 100);
+        }
+    </script>
+</body>
+</html>

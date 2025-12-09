@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Events - Event Management System{% endblock %}
+
+{% block content %}
+<div class="events-container">
+    <h1>Available Events</h1>
+    
+    <div id="events-list" class="events-grid">
+        <!-- Events will be loaded here by JavaScript -->
+    </div>
+</div>
+
+<script>
+    async function loadEvents() {
+        try {
+            const response = await fetch('/api/events/');
+            if (response.ok) {
+                const events = await response.json();
+                const eventsList = document.getElementById('events-list');
+                eventsList.innerHTML = '';
+                
+                if (events.length === 0) {
+                    eventsList.innerHTML = '<p>No events available at the moment.</p>';
+                    return;
+                }
+                
+                events.forEach(event => {
+                    const eventCard = document.createElement('div');
+                    eventCard.className = 'event-card';
+                    eventCard.innerHTML = `
+                        <h3>${event.title}</h3>
+                        <p>${event.description}</p>
+                        <div class="event-info">
+                            <p><strong>Date:</strong> ${event.date}</p>
+                            <p><strong>Time:</strong> ${event.time}</p>
+                            <p><strong>Venue:</strong> ${event.venue}</p>
+                            <p><strong>Available Seats:</strong> ${event.available_seats}/${event.total_seats}</p>
+                        </div>
+                        <button class="btn-primary" onclick="viewEvent('${event.id}')">View Details</button>
+                    `;
+                    eventsList.appendChild(eventCard);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading events:', error);
+            document.getElementById('events-list').innerHTML = '<p>Error loading events.</p>';
+        }
+    }
+
+    function viewEvent(eventId) {
+        window.location.href = `/events/${eventId}`;
+    }
+
+    // Load events on page load
+    loadEvents();
+</script>
+{% endblock %}

@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Event Management System{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container">
+    <div class="dashboard-header">
+        <h1>👑 Admin Dashboard</h1>
+        <p class="subtitle">Manage events and registrations</p>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <h3 id="stat-events">0</h3>
+            <p>Total Events</p>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🎫</div>
+            <h3 id="stat-registrations">0</h3>
+            <p>Total Registrations</p>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✓</div>
+            <h3 id="stat-available">0</h3>
+            <p>Seats Available</p>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✔</div>
+            <h3 id="stat-booked">0</h3>
+            <p>Seats Booked</p>
+        </div>
+    </div>
+
+    <!-- Create Event Section -->
+    <div class="admin-section">
+        <h2>➕ Create New Event</h2>
+        <form id="createEventForm" class="admin-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="title">Event Title:</label>
+                    <input type="text" id="title" name="title" placeholder="Enter event title" required>
+                </div>
+                <div class="form-group">
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="time">Time:</label>
+                    <input type="time" id="time" name="time" required>
+                </div>
+                <div class="form-group">
+                    <label for="total_seats">Total Seats:</label>
+                    <input type="number" id="total_seats" name="total_seats" min="1" placeholder="e.g., 100" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="venue">Venue:</label>
+                <input type="text" id="venue" name="venue" placeholder="Enter venue location" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="4" placeholder="Enter event description" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary">📝 Create Event</button>
+            <div id="create-message" class="message-box"></div>
+        </form>
+    </div>
+
+    <!-- Events List Section -->
+    <div class="admin-section">
+        <h2>📅 Your Events</h2>
+        <div id="events-list" class="admin-events-grid">
+            <!-- Events will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Event Details Modal -->
+    <div id="eventDetailsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalEventTitle">Event Details</h2>
+                <button class="modal-close" onclick="closeEventDetails()">✕</button>
+            </div>
+            <div id="eventDetailsContent" class="modal-body">
+                <!-- Event details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Registrations Section -->
+    <div class="admin-section">
+        <h2>🎟️ All Registrations</h2>
+        <div id="registrations-list" class="registrations-table-container">
+            <!-- Registrations will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEventId = null;
+
+    async function loadDashboardData() {
+        try {
+            const response = await fetch('/admin/dashboard-data');
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Failed to load dashboard data');
+            }
+
+            const data = await response.json();
+            
+            // Update stats
+            document.getElementById('stat-events').textContent = data.total_events;
+            document.getElementById('stat-registrations').textContent = data.total_registrations;
+            document.getElementById('stat-available').textContent = data.total_seats_available;
+            document.getElementById('stat-booked').textContent = data.total_seats_booked;
+
+            // Display events
+            const eventsList = document.getElementById('events-list');
+            eventsList.innerHTML = '';
+            
+            if (data.events.length === 0) {
+                eventsList.innerHTML = '<p class="no-data">No events created yet.</p>';
+            } else {
+                data.events.forEach(event => {
+                    const seatsPercentage = Math.round((event.total_seats - event.available_seats) / event.total_seats * 100);
+                    const eventCard = document.createElement('div');
+                    eventCard.className = 'admin-event-card';
+                    eventCard.innerHTML = `
+                        <div class="event-card-header">
+                            <h3>${event.title}</h3>
+                            <span class="event-date">${formatDate(event.date)}</span>
+                        </div>
+                        <div class="event-card-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Seats</span>
+                                <span class="stat-value">${event.available_seats}/${event.total_seats}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Booked</span>
+                                <span class="stat-value">${seatsPercentage}%</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${seatsPercentage}%"></div>
+                        </div>
+                        <div class="event-actions">
+                            <button class="btn-secondary" onclick="viewEventDetails('${event.id}')">
+                                👁️ View Details
+                            </button>
+                            <button class="btn-danger" onclick="deleteEvent('${event.id}')">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    `;
+                    eventsList.appendChild(eventCard);
+                });
+            }
+
+            // Load registrations
+            await loadRegistrations();
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+        }
+    }
+
+    async function viewEventDetails(eventId) {
+        try {
+            currentEventId = eventId;
+            const response = await fetch(`/admin/registrations/event/${eventId}`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to load event details');
+            }
+
+            const registrations = await response.json();
+            const eventResponse = await fetch(`/api/events/${eventId}`);
+            const event = await eventResponse.json();
+
+            const content = document.getElementById('eventDetailsContent');
+            document.getElementById('modalEventTitle').textContent = event.title;
+
+            let regsHtml = `
+                <div class="event-info-detailed">
+                    <div class="detail-row">
+                        <span class="label">📅 Date:</span>
+                        <span class="value">${formatDate(event.date)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">🕐 Time:</span>
+                        <span class="value">${event.time}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">📍 Venue:</span>
+                        <span class="value">${event.venue}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">📝 Description:</span>
+                        <span class="value">${event.description}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">🎫 Capacity:</span>
+                        <span class="value">${event.total_seats} seats (${event.available_seats} available, ${event.total_seats - event.available_seats} booked)</span>
+                    </div>
+                </div>
+
+                <h3>Registrations (${registrations.length})</h3>
+            `;
+
+            if (registrations.length === 0) {
+                regsHtml += '<p>No registrations for this event yet.</p>';
+            } else {
+                regsHtml += '<div class="registrations-list-detailed">';
+                registrations.forEach(reg => {
+                    regsHtml += `
+                        <div class="registration-item">
+                            <div class="reg-info">
+                                <p><strong>Name:</strong> ${reg.user_name}</p>
+                                <p><strong>Email:</strong> ${reg.user_email}</p>
+                                <p><strong>Ticket:</strong> ${reg.ticket_number}</p>
+                                <p><strong>Registered:</strong> ${formatDate(reg.registration_date)}</p>
+                            </div>
+                            <div class="reg-qr">
+                                <img src="${reg.ticket_qr_path}" alt="QR Code" class="qr-thumbnail">
+                            </div>
+                        </div>
+                    `;
+                });
+                regsHtml += '</div>';
+            }
+
+            content.innerHTML = regsHtml;
+            document.getElementById('eventDetailsModal').style.display = 'flex';
+        } catch (error) {
+            console.error('Error loading event details:', error);
+            alert('Failed to load event details');
+        }
+    }
+
+    function closeEventDetails() {
+        document.getElementById('eventDetailsModal').style.display = 'none';
+        currentEventId = null;
+    }
+
+    async function loadRegistrations() {
+        try {
+            const response = await fetch('/admin/registrations');
+            
+            if (response.ok) {
+                const registrations = await response.json();
+                const regList = document.getElementById('registrations-list');
+                regList.innerHTML = '';
+
+                if (registrations.length === 0) {
+                    regList.innerHTML = '<p class="no-data">No registrations yet.</p>';
+                    return;
+                }
+
+                let table = '<table class="registrations-table"><thead><tr><th>Name</th><th>Email</th><th>Event</th><th>Ticket</th><th>Date</th></tr></thead><tbody>';
+                
+                registrations.forEach(reg => {
+                    table += `<tr>
+                        <td>${reg.user_name}</td>
+                        <td>${reg.user_email}</td>
+                        <td>${reg.event_title}</td>
+                        <td><code>${reg.ticket_number}</code></td>
+                        <td>${formatDate(reg.registration_date)}</td>
+                    </tr>`;
+                });
+                
+                table += '</tbody></table>';
+                regList.innerHTML = table;
+            }
+        } catch (error) {
+            console.error('Error loading registrations:', error);
+        }
+    }
+
+    async function deleteEvent(eventId) {
+        if (!confirm('Are you sure you want to delete this event?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/events/${eventId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Event deleted successfully');
+                loadDashboardData();
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to delete event');
+            }
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            alert('An error occurred while deleting the event');
+        }
+    }
+
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { 
+            weekday: 'short',
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric'
+        });
+    }
+
+    // Form submission
+    document.getElementById('createEventForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            date: document.getElementById('date').value,
+            time: document.getElementById('time').value,
+            venue: document.getElementById('venue').value,
+            total_seats: parseInt(document.getElementById('total_seats').value)
+        };
+
+        try {
+            const response = await fetch('/api/events/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const messageDiv = document.getElementById('create-message');
+            
+            if (response.ok) {
+                messageDiv.className = 'message-box success-message';
+                messageDiv.textContent = '✓ Event created successfully!';
+                document.getElementById('createEventForm').reset();
+                
+                setTimeout(() => {
+                    messageDiv.textContent = '';
+                    loadDashboardData();
+                }, 2000);
+            } else {
+                const error = await response.json();
+                messageDiv.className = 'message-box error-message';
+                messageDiv.textContent = '✗ ' + (error.detail || 'Failed to create event');
+            }
+        } catch (error) {
+            console.error('Error creating event:', error);
+            document.getElementById('create-message').className = 'message-box error-message';
+            document.getElementById('create-message').textContent = '✗ An error occurred';
+        }
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('eventDetailsModal');
+        if (e.target === modal) {
+            closeEventDetails();
+        }
+    });
+
+    // Load dashboard on page load
+    loadDashboardData();
+</script>
+{% endblock %}

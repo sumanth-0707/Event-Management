@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Event Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="/">Event Manager</a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/events">Events</a></li>
+                {% if user %}
+                    <li><a href="/dashboard">My Bookings</a></li>
+                    {% if user.is_admin %}
+                        <li><a href="/admin/dashboard">Admin</a></li>
+                    {% endif %}
+                    <li><a href="#" onclick="logout()">Logout</a></li>
+                {% else %}
+                    <li><a href="/login">Login</a></li>
+                    <li><a href="/register">Register</a></li>
+                    <li><a href="/create-admin" class="nav-admin-link">Create Admin</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Event Management System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        async function logout() {
+            const response = await fetch('/auth/logout', { method: 'POST' });
+            if (response.ok) {
+                window.location.href = '/login';
+            }
+        }
+
+        // Get current user
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/auth/me');
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.error('Error fetching user:', error);
+            }
+            return null;
+        }
+    </script>
+</body>
+</html>

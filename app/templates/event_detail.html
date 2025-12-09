@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Event Details - Event Management System{% endblock %}
+
+{% block content %}
+<div class="event-detail-container">
+    <div class="event-detail-header">
+        <button class="btn-back" onclick="goBack()" title="Back to Events">← Back</button>
+        <h1 id="event-title">Loading...</h1>
+    </div>
+
+    <div class="event-detail-content">
+        <div class="event-detail-main">
+            <div class="event-detail-card">
+                <div id="event-detail" class="event-info-section">
+                    <!-- Event details will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="event-detail-sidebar">
+            <div class="registration-card">
+                <h3>Event Registration</h3>
+                <div id="availability-status" class="availability-status">
+                    <!-- Availability status -->
+                </div>
+                <div id="action-buttons" class="action-buttons">
+                    <!-- Register button or registration status -->
+                </div>
+                <div id="register-message" class="message-box"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const eventId = window.location.pathname.split('/').pop();
+    let userRegistered = false;
+
+    async function loadEventDetail() {
+        try {
+            const response = await fetch(`/api/events/${eventId}`);
+            if (response.ok) {
+                const event = await response.json();
+                displayEventDetails(event);
+                checkUserRegistration(event);
+            } else {
+                showError('Event not found.');
+            }
+        } catch (error) {
+            console.error('Error loading event:', error);
+            showError('Error loading event details.');
+        }
+    }
+
+    function displayEventDetails(event) {
+        document.getElementById('event-title').textContent = event.title;
+        
+        const detailDiv = document.getElementById('event-detail');
+        const seatsPercentage = Math.round((event.total_seats - event.available_seats) / event.total_seats * 100);
+        
+        detailDiv.innerHTML = `
+            <div class="event-header-info">
+                <h2>${event.title}</h2>
+                <p class="event-description">${event.description}</p>
+            </div>
+
+            <div class="event-details-grid">
+                <div class="detail-item">
+                    <span class="label">📅 Date</span>
+                    <span class="value">${formatDate(event.date)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">🕐 Time</span>
+                    <span class="value">${event.time}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">📍 Venue</span>
+                    <span class="value">${event.venue}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">🎫 Capacity</span>
+                    <span class="value">${event.total_seats} Seats</span>
+                </div>
+            </div>
+
+            <div class="seats-info-section">
+                <h4>Availability</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${seatsPercentage}%"></div>
+                </div>
+                <div class="seats-stats">
+                    <p><strong>Available:</strong> ${event.available_seats} / ${event.total_seats}</p>
+                    <p><strong>Booked:</strong> ${event.total_seats - event.available_seats} (${seatsPercentage}%)</p>
+                </div>
+            </div>
+        `;
+
+        // Update availability status
+        updateAvailabilityStatus(event);
+    }
+
+    function updateAvailabilityStatus(event) {
+        const statusDiv = document.getElementById('availability-status');
+        if (event.available_seats > 0) {
+            statusDiv.className = 'availability-status available';
+            statusDiv.innerHTML = `<span class="status-badge available">✓ Seats Available (${event.available_seats} left)</span>`;
+        } else {
+            statusDiv.className = 'availability-status unavailable';
+            statusDiv.innerHTML = `<span class="status-badge unavailable">✗ No Seats Available</span>`;
+        }
+    }
+
+    async function checkUserRegistration(event) {
+        try {
+            const response = await fetch('/registrations/my-registrations');
+            if (response.ok) {
+                const registrations = await response.json();
+                const registered = registrations.some(r => r.event_id === event.id);
+                
+                if (registered) {
+                    userRegistered = true;
+                    updateActionButtons(true, event);
+                } else {
+                    updateActionButtons(false, event);
+                }
+            } else if (response.status === 401) {
+                // User not logged in
+                updateActionButtons(false, event);
+            }
+        } catch (error) {
+            console.error('Error checking registration:', error);
+            updateActionButtons(false, event);
+        }
+    }
+
+    function updateActionButtons(isRegistered, event) {
+        const buttonsDiv = document.getElementById('action-buttons');
+        
+        if (isRegistered) {
+            buttonsDiv.innerHTML = `
+                <div class="registered-status">
+                    <p class="status-message">✓ You are registered for this event</p>
+                    <p class="hint-text">Check your registrations on the <a href="/dashboard">dashboard</a> to view your QR code</p>
+                </div>
+            `;
+        } else {
+            if (event.available_seats > 0) {
+                buttonsDiv.innerHTML = `
+                    <button class="btn-primary btn-register" onclick="registerForEvent()">
+                        🎫 Book Ticket Now
+                    </button>
+                    <p class="disclaimer">Only ${event.available_seats} seats remaining!</p>
+                `;
+            } else {
+                buttonsDiv.innerHTML = `
+                    <button class="btn-disabled" disabled>
+                        No Seats Available
+                    </button>
+                    <p class="disclaimer">This event is fully booked</p>
+                `;
+            }
+        }
+    }
+
+    async function registerForEvent() {
+        const button = document.querySelector('.btn-register');
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        
+        try {
+            const response = await fetch(`/registrations/${eventId}`, {
+                method: 'POST'
+            });
+
+            const messageDiv = document.getElementById('register-message');
+            
+            if (response.ok) {
+                const data = await response.json();
+                messageDiv.className = 'message-box success-message';
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <p class="message-title">✓ Successfully Registered!</p>
+                        <p>Your ticket number: <strong>${data.ticket_number}</strong></p>
+                        <p class="small-text">A confirmation email has been sent to your inbox</p>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 3000);
+            } else {
+                const error = await response.json();
+                messageDiv.className = 'message-box error-message';
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <p class="message-title">✗ Registration Failed</p>
+                        <p>${error.detail || 'Something went wrong'}</p>
+                    </div>
+                `;
+                button.disabled = false;
+                button.textContent = '🎫 Book Ticket Now';
+            }
+        } catch (error) {
+            console.error('Error registering:', error);
+            const messageDiv = document.getElementById('register-message');
+            messageDiv.className = 'message-box error-message';
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <p class="message-title">✗ Error</p>
+                    <p>An error occurred. Please try again.</p>
+                </div>
+            `;
+            button.disabled = false;
+            button.textContent = '🎫 Book Ticket Now';
+        }
+    }
+
+    function showError(message) {
+        document.getElementById('event-detail').innerHTML = `<p class="error">${message}</p>`;
+        document.getElementById('event-title').textContent = 'Error';
+    }
+
+    function goBack() {
+        window.location.href = '/events';
+    }
+
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // Load event details on page load
+    loadEventDetail();
+</script>
+{% endblock %}

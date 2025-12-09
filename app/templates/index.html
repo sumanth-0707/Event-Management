@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Event Management System{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <h1>Welcome to Event Management System</h1>
+    <p>Discover and register for amazing events</p>
+    <a href="/events" class="btn-primary">Browse Events</a>
+</div>
+
+<div class="features-section">
+    <h2>Why Choose Us?</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <h3>Easy Registration</h3>
+            <p>Quick and simple event registration with instant confirmation</p>
+        </div>
+        <div class="feature-card">
+            <h3>Digital Tickets</h3>
+            <p>Receive QR code tickets instantly via email</p>
+        </div>
+        <div class="feature-card">
+            <h3>Event Management</h3>
+            <p>Admins can easily manage events and track registrations</p>
+        </div>
+        <div class="feature-card">
+            <h3>Real-time Updates</h3>
+            <p>Get live updates on seat availability</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

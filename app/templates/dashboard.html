@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings - Event Management System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>🎫 My Event Registrations</h1>
+        <p class="subtitle">View your bookings and download tickets</p>
+    </div>
+    
+    <div id="registrations-list" class="registrations-grid">
+        <!-- Registrations will be loaded here -->
+    </div>
+
+    <div id="empty-state" style="display: none;" class="empty-state">
+        <div class="empty-state-content">
+            <h2>No Registrations Yet</h2>
+            <p>You haven't registered for any events yet</p>
+            <a href="/events" class="btn-primary">Browse Events</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadRegistrations() {
+        try {
+            const response = await fetch('/registrations/my-registrations', { cache: 'no-store' });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Failed to load registrations');
+            }
+            
+            const registrations = await response.json();
+            const regList = document.getElementById('registrations-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            regList.innerHTML = '';
+            
+            if (registrations.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            registrations.forEach((reg, index) => {
+                const regCard = document.createElement('div');
+                regCard.className = 'registration-card';
+                regCard.innerHTML = `
+                    <div class="registration-header">
+                        <div class="reg-title-section">
+                            <h3 class="reg-title">${reg.event_title}</h3>
+                            <span class="ticket-badge">${reg.ticket_number}</span>
+                        </div>
+                        <button class="btn-more" onclick="toggleDetails(this)" title="Show more options">⋮</button>
+                    </div>
+
+                    <div class="registration-details">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="label">📅 Date</span>
+                                <span class="value">${formatDate(reg.event_date)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">🕐 Time</span>
+                                <span class="value">${reg.event_time}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">📍 Venue</span>
+                                <span class="value">${reg.event_venue}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">🎟️ Registered</span>
+                                <span class="value">${formatDate(reg.registration_date)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="qr-code-section">
+                        <div class="qr-container">
+                            <img src="${reg.ticket_qr_path}" alt="Ticket QR Code" class="qr-code" id="qr-${index}">
+                        </div>
+                        <p class="qr-hint">📱 Scan this QR code at the event check-in</p>
+                    </div>
+
+                    <div class="registration-actions">
+                        <button class="btn-secondary" onclick="downloadQR('${reg.ticket_qr_path}', '${reg.ticket_number}')">
+                            ⬇️ Download QR Code
+                        </button>
+                        <button class="btn-secondary" onclick="printTicket('${index}')">
+                            🖨️ Print Ticket
+                        </button>
+                    </div>
+                `;
+                regList.appendChild(regCard);
+            });
+        } catch (error) {
+            console.error('Error loading registrations:', error);
+            document.getElementById('registrations-list').innerHTML = `
+                <div class="error-message">
+                    <p>Error loading registrations. Please try again later.</p>
+                </div>
+            `;
+        }
+    }
+
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { 
+            weekday: 'short',
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function toggleDetails(button) {
+        const card = button.closest('.registration-card');
+        const moreMenu = card.querySelector('.registration-actions');
+        
+        if (!moreMenu) {
+            return;
+        }
+        
+        if (moreMenu.style.display === 'none') {
+            moreMenu.style.display = 'flex';
+            button.textContent = '✕';
+        } else {
+            moreMenu.style.display = 'flex';
+        }
+    }
+
+    async function downloadQR(qrPath, ticketNumber) {
+        try {
+            const link = document.createElement('a');
+            link.href = qrPath;
+            link.download = `ticket-${ticketNumber}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error downloading QR code:', error);
+            alert('Could not download QR code');
+        }
+    }
+
+    function printTicket(index) {
+        const card = document.querySelector(`#qr-${index}`).closest('.registration-card');
+        const printWindow = window.open('', '', 'height=600,width=600');
+        
+        const content = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Event Ticket</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                    .ticket { border: 2px solid #ddd; padding: 30px; max-width: 400px; margin: 0 auto; }
+                    h1 { color: #333; }
+                    .qr-code { max-width: 300px; margin: 20px 0; }
+                    .info { text-align: left; margin: 20px 0; }
+                    .info p { margin: 5px 0; }
+                    @media print { body { margin: 0; padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="ticket">
+                    <h1>Event Ticket</h1>
+                    ${card.innerHTML}
+                </div>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(content);
+        printWindow.document.close();
+        
+        // Auto-print after a short delay to ensure content loads
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    }
+
+    // Load registrations on page load
+    loadRegistrations();
+</script>
+{% endblock %}
