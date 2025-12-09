@@ -1,6 +1,7 @@
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
 from app.config import settings
 
 async def send_registration_email(recipient_email: str, username: str, ticket_number: str, qr_code_path: str):
@@ -15,7 +16,7 @@ async def send_registration_email(recipient_email: str, username: str, ticket_nu
     """
     try:
         # Create email message
-        message = MIMEMultipart("alternative")
+        message = MIMEMultipart("related")
         message["Subject"] = "Event Registration Confirmation"
         message["From"] = settings.EMAIL_FROM
         message["To"] = recipient_email
@@ -43,6 +44,20 @@ async def send_registration_email(recipient_email: str, username: str, ticket_nu
         part = MIMEText(html_content, "html")
         message.attach(part)
         
+        # Attach QR code image
+        if qr_code_path:
+            try:
+                with open(qr_code_path, "rb") as f:
+                    img_data = f.read()
+                image = MIMEImage(img_data, name="qrcode.png")
+                image.add_header("Content-ID", "<qrcode>")
+                image.add_header("Content-Disposition", "inline", filename="qrcode.png")
+                message.attach(image)
+            except FileNotFoundError:
+                import logging
+                logging.warning(f"QR code image not found at {qr_code_path}")
+
+
         # Send email
         async with aiosmtplib.SMTP(hostname=settings.SMTP_SERVER, port=settings.SMTP_PORT) as smtp:
             await smtp.login(settings.EMAIL_FROM, settings.EMAIL_PASSWORD)
@@ -58,7 +73,7 @@ async def send_registration_email(recipient_email: str, username: str, ticket_nu
         logging.warning(f"Could not send confirmation email (this is non-critical)")
         return False
 
-async def send_event_created_email(admin_email: str, event_title: str, event_date: str):
+async def send_event_created_email(admin_email: str, event_title: str, event_date: str, event_description: str, event_venue: str):
     """
     Send confirmation email when admin creates an event
     
@@ -66,6 +81,8 @@ async def send_event_created_email(admin_email: str, event_title: str, event_dat
         admin_email: Admin's email address
         event_title: Title of the created event
         event_date: Date of the event
+        event_description: Description of the event
+        event_venue: Venue of the event
     """
     try:
         message = MIMEMultipart("alternative")
@@ -80,6 +97,9 @@ async def send_event_created_email(admin_email: str, event_title: str, event_dat
                 <p>Your event has been created successfully.</p>
                 <p><strong>Event Title:</strong> {event_title}</p>
                 <p><strong>Event Date:</strong> {event_date}</p>
+                <p><strong>Venue:</strong> {event_venue}</p>
+                <p><strong>Description:</strong></p>
+                <p>{event_description}</p>
                 <p>Users can now register for your event.</p>
                 <hr>
                 <p style="color: #666; font-size: 12px;">This is an automated email, please do not reply.</p>

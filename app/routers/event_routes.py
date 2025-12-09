@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks
 from bson.objectid import ObjectId
 from app.database import get_database
 from app.schemas.event_schema import EventCreateSchema, EventUpdateSchema, EventResponseSchema
 from app.utils.auth import decode_token
 from app.models.event import Event
+from app.utils.email import send_event_created_email
 from datetime import datetime
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -85,7 +86,7 @@ async def get_event(event_id: str):
     }
 
 @router.post("/", response_model=dict)
-async def create_event(event_data: EventCreateSchema, request: Request):
+async def create_event(event_data: EventCreateSchema, request: Request, background_tasks: BackgroundTasks):
     """Create a new event (admin only)"""
     db = get_database()
     current_user = await get_current_user_from_request(request)
@@ -109,6 +110,15 @@ async def create_event(event_data: EventCreateSchema, request: Request):
     }
     
     result = await db["events"].insert_one(event_dict)
+
+    background_tasks.add_task(
+        send_event_created_email,
+        admin_email=current_user["email"],
+        event_title=event_data.title,
+        event_date=event_data.date,
+        event_description=event_data.description,
+        event_venue=event_data.venue
+    )
     
     return {
         "message": "Event created successfully",

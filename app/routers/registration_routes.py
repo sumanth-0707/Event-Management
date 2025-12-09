@@ -83,13 +83,16 @@ async def register_for_event(event_id: str, request: Request, background_tasks: 
     
     # Generate QR code
     qr_data = get_qr_code_data(ticket_number, current_user["email"], event_id)
-    qr_path = generate_qr_code(qr_data, ticket_number)
+    qr_relative_path = generate_qr_code(qr_data, ticket_number)
     
+    # Get absolute path for email attachment
+    qr_absolute_path = os.path.join(settings.QR_CODE_DIR, f"{ticket_number}.png")
+
     # Create registration
     registration_dict = {
         "user_id": user_oid,
         "event_id": event_oid,
-        "ticket_qr_path": qr_path,
+        "ticket_qr_path": qr_relative_path,
         "ticket_number": ticket_number,
         "registration_date": datetime.utcnow()
     }
@@ -108,14 +111,14 @@ async def register_for_event(event_id: str, request: Request, background_tasks: 
         current_user["email"],
         user.get("name", "User"),
         ticket_number,
-        qr_path
+        qr_absolute_path
     )
     
     return {
         "message": "Successfully registered for event",
         "registration_id": str(result.inserted_id),
         "ticket_number": ticket_number,
-        "qr_code_path": qr_path
+        "qr_code_path": qr_relative_path
     }
 
 @router.get("/my-registrations", response_model=list)
